@@ -28,9 +28,9 @@
         const { useState, useEffect, useMemo, useRef } = React;
         
         // --- PocketBase Connection ---
-        // TODO: החלף את הכתובת למטה בכתובת ה-Cloudflare Tunnel שלך!
-        // לדוגמה: https://api-saban.your-domain.com
-        const PB_URL = 'https://YOUR-TUNNEL-URL-HERE';
+        // ⚠️ חשוב: החלף את הכתובת הזו בכתובת האמיתית של ה-Cloudflare Tunnel שלך!
+        // כרגע זה מכוון לכתובת דוגמה שגורמת לשגיאה.
+        const PB_URL = 'https://YOUR-REAL-TUNNEL-ADDRESS.trycloudflare.com';
         
         const pb = new PocketBase(PB_URL);
         pb.autoCancellation(false);
