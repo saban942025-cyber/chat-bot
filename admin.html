@@ -2,250 +2,296 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Saban Admin - PocketBase</title>
-    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/25/25694.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ח.סבן חומרי בנין</title>
     
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- PWA Identity -->
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIuYXneXlueZl9ecIOXlueZl9ecIiwKICAic2hvcnRfbmFtZSI6ICLmF53l5bnmZfXnCIsKICAic3RhcnRfdXJsIjogIi4vIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjZjNmNGY2IiwKICAidGhlbWVfY29sb3IiOiAiIzE0YjhhNiIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vY2RuLWljb25zLXBuZy5mbGF0aWNvbi5jb20vNTEyLzI1LzI1Njk0LnBuZyIsCiAgICAgICJzaXplcyI6ICI1MTJ4NTEyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfQogIF0KfQ==">
+    <meta name="theme-color" content="#14b8a6">
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/25/25694.png">
+
+    <!-- Libraries -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/history@5/umd/history.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-router@6.3.0/umd/react-router.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-router-dom@6.3.0/umd/react-router-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://unpkg.com/pocketbase/dist/pocketbase.umd.js"></script>
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { saban: { 500: '#14b8a6', 600: '#0d9488' } },
+                    fontFamily: { sans: ['Heebo', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700;900&display=swap" rel="stylesheet">
+
     <style>
-        body { background-color: #111827; color: white; font-family: sans-serif; }
-        .input-dark { background: #1f2937; border: 1px solid #374151; color: white; padding: 8px; border-radius: 6px; width: 100%; margin-bottom: 10px; }
-        .btn { padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .btn-primary { background: #14b8a6; color: white; }
-        .btn-primary:hover { background: #0d9488; }
-        .glass-panel { background: rgba(31, 41, 55, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(75, 85, 99, 0.4); }
+        body { background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,0.5); }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
-        
-        // --- PocketBase Connection ---
-        // 👇👇👇 את השורה הזו אתה צריך לערוך! 👇👇👇
-        // מחק את הטקסט בתוך הגרשיים והדבק את הכתובת שהעתקת מ-Cloudflare
-        const PB_URL = 'https://YOUR-REAL-TUNNEL-ADDRESS.trycloudflare.com';
-        
-        const pb = new PocketBase(PB_URL);
-        pb.autoCancellation(false);
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // --- Data Service (PB Adapter) ---
-        const dbService = {
-            getProducts: async (cb) => {
-                const records = await pb.collection('products').getFullList({ sort: '-created' }).catch(err => {
-                    console.error("Fetch Error:", err);
-                    if(err.status === 0) alert("שגיאת חיבור לשרת. ודא שה-Tunnel פעיל ושהכתובת בקוד נכונה.");
-                });
-                if(records) cb(records);
-            },
-            saveProduct: async (data, id) => {
-                try {
-                    if(id) await pb.collection('products').update(id, data);
-                    else await pb.collection('products').create(data);
-                } catch(e) { console.error(e); alert("שגיאה בשמירה: " + e.message); }
-            },
-            deleteProduct: async (id) => {
-                if(confirm("למחוק?")) {
-                    await pb.collection('products').delete(id);
-                    return true;
-                }
-                return false;
-            },
-            getCategories: async (cb) => {
-                try {
-                    const list = await pb.collection('categories').getFullList();
-                    cb(list);
-                } catch(e) { cb([]); }
-            },
-            addCategory: async (cat) => {
-                await pb.collection('categories').create(cat);
-            },
-            deleteCategory: async (id) => {
-                if(confirm("למחוק קטגוריה?")) await pb.collection('categories').delete(id);
-            }
+        const firebaseConfig = {
+            apiKey: "AIzaSyA3qwgBX69Clu7pUdOnOEcfzUVyR7ADrNc",
+            authDomain: "saban94-eb5f0.firebaseapp.com",
+            projectId: "saban94-eb5f0",
+            storageBucket: "saban94-eb5f0.firebasestorage.app",
+            messagingSenderId: "656829273946",
+            appId: "1:656829273946:web:8ebcb440ed280aff014563",
+            measurementId: "G-PQGYJ2YQRK"
         };
 
-        // --- Components ---
-        const Icon = ({ name, size = 20 }) => {
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.sabanDB = {
+            subscribeProducts: (cb) => onSnapshot(collection(db, "products"), (snap) => cb(snap.docs.map(d => ({id: d.id, ...d.data()})))),
+            subscribeCategories: (cb) => onSnapshot(collection(db, "categories"), (snap) => {
+                let list = snap.docs.map(d => ({id: d.id, ...d.data()}));
+                if(list.length === 0) list = [{id: 'all', name: 'הכל', icon: 'LayoutGrid'}]; // Default
+                cb(list);
+            })
+        };
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const { HashRouter, Routes, Route, Link, useNavigate, useParams, useLocation } = ReactRouterDOM;
+        const { motion, AnimatePresence } = window.Motion;
+
+        // FIX: Safe Icon Component
+        const Icon = ({ name, size = 20, className }) => {
             const ref = useRef(null);
             useEffect(() => {
                 if (ref.current && window.lucide && window.lucide.icons[name]) {
                     const svg = window.lucide.createElement(window.lucide.icons[name]);
-                    svg.setAttribute('width', size); svg.setAttribute('height', size);
-                    ref.current.innerHTML = ''; ref.current.appendChild(svg);
+                    svg.setAttribute('width', size);
+                    svg.setAttribute('height', size);
+                    if (className) svg.setAttribute('class', className);
+                    ref.current.innerHTML = '';
+                    ref.current.appendChild(svg);
                 }
-            }, [name]);
+            }, [name, size, className]);
             return <span ref={ref} className="inline-flex items-center justify-center" />;
         };
 
-        const ProductSearch = ({ onSelect }) => {
-            const [query, setQuery] = useState('');
-            const [results, setResults] = useState([]);
-            const [loading, setLoading] = useState(false);
+        const PHONE_NUMBER = "972508860896";
 
-            const searchGoogle = async () => {
-                if (!query) return;
-                setLoading(true);
-                try {
-                    const GOOGLE_API_KEY = "AIzaSyBtTsufWhuB7_Xn6TUONpGQ7ydlpmgynUI"; 
-                    const CX = "3331a7d5c75e14f26"; 
-                    const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${CX}&q=${encodeURIComponent(query)}`;
-                    const res = await fetch(url);
-                    const data = await res.json();
-                    setResults(data.items || []);
-                } catch (e) { alert("שגיאה בחיפוש"); } 
-                finally { setLoading(false); }
-            };
-
+        // --- COMPONENTS ---
+        const NavBar = ({ cartCount }) => {
+            const loc = useLocation();
+            const isActive = (p) => loc.pathname === p ? 'text-saban-600' : 'text-gray-400';
             return (
-                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 mb-8 shadow-2xl">
-                    <h2 className="text-xl font-bold text-teal-400 mb-4 flex gap-2"><Icon name="Search"/> איתור מוצר ברשת</h2>
-                    <div className="flex gap-2 mb-4">
-                        <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e)=>e.key==='Enter'&&searchGoogle()} placeholder="שם מוצר..." className="input-dark mb-0 flex-1"/>
-                        <button onClick={searchGoogle} className="btn btn-primary w-32">{loading ? '...' : 'חפש'}</button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-h-60 overflow-y-auto">
-                        {results.map((item, idx) => {
-                            const img = item.pagemap?.cse_image?.[0]?.src || item.pagemap?.og_image?.[0]?.src || '';
-                            return (
-                                <div key={idx} className="bg-gray-700 p-3 rounded-lg border border-gray-600 flex flex-col gap-2">
-                                    <div className="flex gap-3">
-                                        {img && <img src={img} className="w-12 h-12 object-cover rounded bg-white" />}
-                                        <div className="flex-1 overflow-hidden">
-                                            <h4 className="font-bold text-sm text-blue-300 truncate">{item.title}</h4>
-                                            <p className="text-xs text-gray-400 truncate">{item.snippet}</p>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => onSelect({ title: item.title, description: item.snippet, image: img })} className="btn btn-primary text-xs w-full mt-auto py-1">⬇️ העתק לטופס</button>
-                                </div>
-                            );
-                        })}
-                    </div>
+                <div className="fixed bottom-0 w-full bg-white glass pb-safe border-t z-30 h-16 flex justify-around items-center px-2">
+                    <Link to="/" className={`flex flex-col items-center gap-1 text-[10px] font-medium ${isActive('/')}`}><Icon name="Home" size={22} /><span>ראשי</span></Link>
+                    <Link to="/scan" className="flex flex-col items-center justify-center -mt-6"><div className="bg-saban-600 text-white p-3.5 rounded-full shadow-lg"><Icon name="ScanLine" size={24} /></div><span className="text-[10px] font-bold text-saban-600 mt-1">סרוק</span></Link>
+                    <Link to="/cart" className={`flex flex-col items-center gap-1 text-[10px] font-medium relative ${isActive('/cart')}`}><Icon name="ShoppingCart" size={22} />{cartCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full">{cartCount}</span>}<span>עגלה</span></Link>
                 </div>
             );
         };
 
-        const AdminApp = () => {
-            const [products, setProducts] = useState([]);
-            const [categories, setCategories] = useState([]);
-            const [editMode, setEditMode] = useState(false);
-            const [currentId, setCurrentId] = useState(null);
-            
-            const [form, setForm] = useState({
-                title: '', sku: '', price: '', category: 'all', description: '', image: '',
-                features: '', coverage: '', drying: '', standard: ''
-            });
+        const ChatWidget = ({ products }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const [msgs, setMsgs] = useState([{role:'bot', text:'היי! חפש מוצר ואני אבדוק במלאי.'}]);
+            const [input, setInput] = useState('');
+            const endRef = useRef(null);
 
-            const refresh = () => {
-                dbService.getProducts(setProducts);
-                dbService.getCategories(setCategories);
+            useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), [msgs, isOpen]);
+
+            const send = () => {
+                if(!input.trim()) return;
+                setMsgs(p => [...p, { role: 'user', text: input }]);
+                setInput('');
+                setTimeout(() => {
+                    const term = input.toLowerCase();
+                    const found = products.find(p => p.title.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term));
+                    let ans = found 
+                        ? `כן! יש לנו ${found.title} במחיר ₪${found.price}.` 
+                        : "לא מצאתי כרגע. נסה לחפש בקטלוג.";
+                    setMsgs(p => [...p, { role: 'bot', text: ans }]);
+                }, 600);
             };
-
-            useEffect(() => { refresh(); }, []);
-
-            const handleSubmit = async (e) => {
-                e.preventDefault();
-                const data = {
-                    title: form.title,
-                    sku: form.sku,
-                    price: Number(form.price),
-                    description: form.description,
-                    image: form.image,
-                    category: form.category,
-                    features: form.features.split(',').map(s=>s.trim()).filter(Boolean),
-                    technicalSpecs: {
-                        coveragePerM2: form.coverage,
-                        dryingTime: form.drying,
-                        standard: form.standard
-                    }
-                };
-                await dbService.saveProduct(data, currentId);
-                alert(editMode ? "עודכן!" : "נוסף!");
-                setEditMode(false); setCurrentId(null);
-                setForm({ title: '', sku: '', price: '', category: 'all', description: '', image: '', features: '', coverage: '', drying: '', standard: '' });
-                refresh();
-            };
-
-            const fillFromSearch = (data) => {
-                setForm(p => ({ ...p, title: data.title, description: data.description, image: data.image }));
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            };
-
-            const loadEdit = (p) => {
-                setEditMode(true); setCurrentId(p.id);
-                setForm({
-                    title: p.title||'', sku: p.sku||'', price: p.price||'', category: p.category||'all',
-                    description: p.description||'', image: p.image||'',
-                    features: (p.features||[]).join(', '),
-                    coverage: p.technicalSpecs?.coveragePerM2||'', drying: p.technicalSpecs?.dryingTime||'', standard: p.technicalSpecs?.standard||''
-                });
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            };
-
-            const deleteP = async (id) => { if(await dbService.deleteProduct(id)) refresh(); };
 
             return (
-                <div className="max-w-7xl mx-auto p-4 md:p-8">
-                    <h1 className="text-3xl font-black mb-8 text-teal-400">SabanOS Admin (PB Edition)</h1>
-                    <ProductSearch onSelect={fillFromSearch} />
-                    
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-1 glass-panel p-6 rounded-xl">
-                            <h2 className="text-xl font-bold mb-4 text-teal-400">{editMode ? 'עריכה' : 'הוספה'}</h2>
-                            <form onSubmit={handleSubmit} className="space-y-3">
-                                <input value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="שם מוצר" className="input-dark" required/>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <input value={form.sku} onChange={e=>setForm({...form, sku:e.target.value})} placeholder="מק״ט" className="input-dark" required/>
-                                    <input value={form.price} onChange={e=>setForm({...form, price:e.target.value})} placeholder="מחיר" type="number" className="input-dark" required/>
-                                </div>
-                                <select value={form.category} onChange={e=>setForm({...form, category:e.target.value})} className="input-dark">
-                                    <option value="all">כללי</option>
-                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                                <input value={form.image} onChange={e=>setForm({...form, image:e.target.value})} placeholder="כתובת תמונה (URL)" className="input-dark"/>
-                                <textarea value={form.description} onChange={e=>setForm({...form, description:e.target.value})} placeholder="תיאור" className="input-dark h-24"></textarea>
-                                
-                                <div className="bg-gray-900/50 p-3 rounded border border-gray-700">
-                                    <div className="text-xs text-gray-400 mb-2">מפרט טכני</div>
-                                    <input value={form.features} onChange={e=>setForm({...form, features:e.target.value})} placeholder="תכונות (מופרד פסיק)" className="input-dark text-xs"/>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <input value={form.coverage} onChange={e=>setForm({...form, coverage:e.target.value})} placeholder="כיסוי" className="input-dark text-xs"/>
-                                        <input value={form.drying} onChange={e=>setForm({...form, drying:e.target.value})} placeholder="ייבוש" className="input-dark text-xs"/>
-                                        <input value={form.standard} onChange={e=>setForm({...form, standard:e.target.value})} placeholder="תקן" className="input-dark text-xs"/>
-                                    </div>
-                                </div>
-                                <button className="btn btn-primary w-full mt-2">{editMode ? 'עדכן' : 'שמור'}</button>
-                                {editMode && <button type="button" onClick={()=>{setEditMode(false); setCurrentId(null);}} className="text-xs text-gray-400 mt-2 w-full">ביטול</button>}
-                            </form>
-                        </div>
+                <>
+                    <button onClick={() => setIsOpen(true)} className={`fixed bottom-24 left-4 z-40 p-3 bg-white text-saban-600 rounded-full shadow-xl transition-all ${isOpen ? 'scale-0' : 'scale-100'}`}><Icon name="Bot" size={28} /></button>
+                    <AnimatePresence>{isOpen && <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} exit={{opacity:0,y:20}} className="fixed bottom-20 left-4 right-4 md:w-80 h-96 bg-white shadow-2xl rounded-2xl border z-50 flex flex-col"><div className="bg-saban-600 text-white p-3 flex justify-between"><span className="font-bold flex gap-2"><Icon name="Bot" size={18}/> העוזר</span><button onClick={()=>setIsOpen(false)}><Icon name="X" size={18}/></button></div><div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">{msgs.map((m,i)=><div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`p-2 rounded-xl max-w-[85%] text-sm ${m.role==='user'?'bg-saban-600 text-white':'bg-white border'}`}>{m.text}</div></div>)}<div ref={endRef}></div></div><div className="p-2 border-t flex gap-2"><input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="הקלד..." className="flex-1 bg-gray-100 rounded-full px-3 text-sm outline-none"/><button onClick={send} className="bg-saban-600 text-white p-2 rounded-full"><Icon name="Send" size={16}/></button></div></motion.div>}</AnimatePresence>
+                </>
+            );
+        };
 
-                        <div className="lg:col-span-2 space-y-3 max-h-[800px] overflow-y-auto">
-                            {products.map(p => (
-                                <div key={p.id} className="bg-gray-800 p-3 rounded-xl border border-gray-700 flex gap-4 items-center">
-                                    <img src={p.image || 'https://via.placeholder.com/100'} className="w-16 h-16 object-cover rounded bg-gray-900"/>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between"><h3 className="font-bold">{p.title}</h3><span className="text-teal-400 font-bold">₪{p.price}</span></div>
-                                        <div className="text-xs text-gray-400">{p.sku} | {p.category}</div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={()=>loadEdit(p)} className="p-2 bg-gray-700 rounded hover:text-yellow-400"><Icon name="Edit" size={16}/></button>
-                                        <button onClick={()=>deleteP(p.id)} className="p-2 bg-gray-700 rounded hover:text-red-400"><Icon name="Trash2" size={16}/></button>
-                                    </div>
-                                </div>
+        const HomePage = ({ products, categories }) => {
+            const [search, setSearch] = useState('');
+            const [filter, setFilter] = useState('all');
+            
+            const filtered = products.filter(p => {
+                const matchSearch = p.title.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
+                const matchCat = filter === 'all' || p.category === filter;
+                return matchSearch && matchCat;
+            });
+
+            return (
+                <div className="pt-4 pb-24 px-4">
+                    <div className="flex justify-between items-center mb-6">
+                        <div><h1 className="text-2xl font-black text-gray-800">ח.סבן</h1><p className="text-xs text-gray-500">אספקה טכנית לכולם</p></div>
+                        <img src="https://ui-avatars.com/api/?name=Saban&background=0d9488&color=fff" className="w-10 h-10 rounded-full shadow" />
+                    </div>
+                    
+                    <div className="relative mb-6">
+                        <span className="absolute top-3.5 right-4 text-gray-400"><Icon name="Search" size={18}/></span>
+                        <input value={search} onChange={e => setSearch(e.target.value)} className="w-full h-12 pr-12 pl-4 bg-white rounded-2xl shadow-sm outline-none" placeholder="חיפוש מוצר..." />
+                    </div>
+
+                    <div className="mb-6 overflow-x-auto hide-scroll">
+                        <div className="flex gap-3 w-max px-1 pb-2">
+                            {categories.map(cat => (
+                                <button key={cat.id} onClick={() => setFilter(cat.id)} className={`flex flex-col items-center justify-center w-20 h-20 rounded-2xl shadow-sm border transition ${filter===cat.id ? 'bg-saban-600 text-white border-transparent' : 'bg-white border-gray-50 text-gray-600'}`}>
+                                    <div className="mb-1"><Icon name={cat.icon} size={22} /></div>
+                                    <span className="text-xs font-bold">{cat.name}</span>
+                                </button>
                             ))}
                         </div>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        {filtered.map(p => (
+                            <Link to={`/product/${p.id}`} key={p.id} className="bg-white p-3 rounded-2xl shadow-sm flex flex-col h-full border border-gray-50 active:scale-95 transition">
+                                <div className="aspect-square bg-gray-100 rounded-xl mb-3 overflow-hidden relative">
+                                    <img src={p.image || 'https://via.placeholder.com/150'} className="w-full h-full object-cover mix-blend-multiply"/>
+                                </div>
+                                <h3 className="font-bold text-sm text-gray-800 line-clamp-2 leading-tight">{p.title}</h3>
+                                <div className="mt-auto pt-2 flex justify-between items-end">
+                                    <span className="text-lg font-black text-saban-600">₪{p.price}</span>
+                                    <div className="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center text-saban-600 shadow-sm"><Icon name="Plus" size={16} /></div>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                    {filtered.length === 0 && <p className="text-center text-gray-400 mt-10">לא נמצאו מוצרים</p>}
                 </div>
             );
         };
+
+        const ProductPage = ({ products, addToCart }) => {
+            const { id } = useParams();
+            const nav = useNavigate();
+            const p = products.find(x => x.id === id);
+            
+            if(!p) return <div className="h-screen flex items-center justify-center">טוען...</div>;
+
+            return (
+                <div className="bg-white min-h-screen pb-24">
+                    <div className="relative h-72 bg-gray-100">
+                        <img src={p.image || 'https://via.placeholder.com/400'} className="w-full h-full object-cover" />
+                        <button onClick={() => nav(-1)} className="absolute top-4 right-4 w-10 h-10 bg-white/80 rounded-full flex items-center justify-center shadow-sm backdrop-blur"><Icon name="ArrowRight" /></button>
+                    </div>
+                    <div className="-mt-6 relative z-10 bg-white rounded-t-3xl p-6 shadow-sm">
+                        <div className="flex justify-between items-start mb-2"><div><h1 className="text-2xl font-black text-gray-900 leading-tight">{p.title}</h1><p className="text-xs text-gray-400 mt-1">מק"ט: {p.sku}</p></div><div className="text-2xl font-black text-saban-600">₪{p.price}</div></div>
+                        <div className="space-y-6 mt-6">
+                            {p.description && <section><h3 className="font-bold mb-1 text-sm text-gray-800">תיאור</h3><p className="text-sm text-gray-500 leading-relaxed">{p.description}</p></section>}
+                            {p.technicalSpecs && <section><h3 className="font-bold mb-2 text-sm text-gray-800">מפרט טכני</h3><div className="grid grid-cols-3 gap-2 text-center text-xs">
+                                {p.technicalSpecs.coveragePerM2 && <div className="bg-gray-50 p-2 rounded-xl border"><strong>כיסוי</strong><br/>{p.technicalSpecs.coveragePerM2}</div>}
+                                {p.technicalSpecs.dryingTime && <div className="bg-gray-50 p-2 rounded-xl border"><strong>ייבוש</strong><br/>{p.technicalSpecs.dryingTime}</div>}
+                                {p.technicalSpecs.standard && <div className="bg-gray-50 p-2 rounded-xl border"><strong>תקן</strong><br/>{p.technicalSpecs.standard}</div>}
+                            </div></section>}
+                        </div>
+                    </div>
+                    <div className="fixed bottom-0 w-full p-4 bg-white border-t z-20 pb-safe">
+                        <button onClick={() => addToCart(p)} className="w-full bg-saban-600 text-white py-3.5 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 active:scale-95 transition">הוסף לעגלה <Icon name="ShoppingBag" size={18}/></button>
+                    </div>
+                </div>
+            );
+        };
+
+        const CartPage = ({ cart, updateQty, clearCart }) => {
+            const [form, setForm] = useState({ name: '', phone: '' });
+            const total = cart.reduce((acc, i) => acc + (i.product.price * i.qty), 0);
+            const send = () => {
+                if(!form.name || !form.phone) return alert("חובה למלא שם וטלפון");
+                let msg = `הזמנה חדשה:\n`;
+                cart.forEach((item, i) => msg += `${i+1}. ${item.product.title} (x${item.qty})\n`);
+                msg += `סה"כ: ₪${total}\nלקוח: ${form.name} ${form.phone}`;
+                window.open(`https://wa.me/${PHONE_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
+                if(confirm("לנקות סל?")) clearCart();
+            };
+            if(!cart.length) return <div className="h-screen flex flex-col items-center justify-center text-gray-400 gap-4"><Icon name="ShoppingCart" size={48} opacity={0.2} /><p>העגלה ריקה</p></div>;
+            return (
+                <div className="pt-6 pb-24 px-4 bg-gray-50 min-h-screen">
+                    <h1 className="text-2xl font-black mb-6">הזמנה</h1>
+                    <div className="space-y-3 mb-8">{cart.map(item => (<div key={item.product.id} className="bg-white p-3 rounded-xl shadow-sm flex gap-3"><div className="flex-1"><h4 className="font-bold text-sm text-gray-800">{item.product.title}</h4><div className="text-saban-600 font-bold">₪{item.product.price * item.qty}</div></div><div className="flex items-center gap-3"><button onClick={() => updateQty(item.product.id, -1)} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg">-</button><span className="font-bold">{item.qty}</span><button onClick={() => updateQty(item.product.id, 1)} className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg">+</button></div></div>))}</div>
+                    <div className="bg-white p-5 rounded-2xl shadow-sm space-y-3 mb-6"><h3 className="font-bold text-sm">פרטי לקוח</h3><input value={form.name} onChange={e=>setForm({...form, name:e.target.value})} placeholder="שם מלא *" className="w-full bg-gray-50 p-3 rounded-xl"/><input value={form.phone} onChange={e=>setForm({...form, phone:e.target.value})} type="tel" placeholder="טלפון *" className="w-full bg-gray-50 p-3 rounded-xl"/></div>
+                    <div className="fixed bottom-0 left-0 w-full bg-white p-4 border-t z-20 pb-safe"><div className="flex justify-between mb-3 font-bold text-lg"><span>סה"כ:</span><span>₪{total}</span></div><button onClick={send} className="w-full bg-green-600 text-white py-3.5 rounded-xl font-bold shadow-lg flex justify-center gap-2">שלח לווטסאפ <Icon name="Send" size={18}/></button></div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [products, setProducts] = useState([]);
+            const [categories, setCategories] = useState([]);
+            const [cart, setCart] = useState(() => JSON.parse(localStorage.getItem('saban_cart')||'[]'));
+
+            useEffect(() => {
+                if(window.sabanDB) {
+                    window.sabanDB.subscribeProducts(setProducts);
+                    window.sabanDB.subscribeCategories(setCategories);
+                }
+            }, []);
+
+            useEffect(() => localStorage.setItem('saban_cart', JSON.stringify(cart)), [cart]);
+
+            const addToCart = (p) => {
+                setCart(prev => {
+                    const exist = prev.find(i => i.product.id === p.id);
+                    if(exist) return prev.map(i => i.product.id === p.id ? {...i, qty: i.qty+1} : i);
+                    return [...prev, { product: p, qty: 1 }];
+                });
+                alert("נוסף לעגלה");
+            };
+
+            const updateQty = (pid, delta) => {
+                setCart(prev => {
+                    if(delta === 0) return prev.filter(i => i.product.id !== pid);
+                    return prev.map(i => {
+                        if(i.product.id === pid) return { ...i, qty: Math.max(0, i.qty + delta) };
+                        return i;
+                    }).filter(i => i.qty > 0);
+                });
+            };
+
+            return (
+                <HashRouter>
+                    <div className="max-w-md mx-auto bg-white min-h-screen shadow-2xl relative overflow-hidden">
+                        <Routes>
+                            <Route path="/" element={<HomePage products={products} categories={categories} />} />
+                            <Route path="/product/:id" element={<ProductPage products={products} addToCart={addToCart} />} />
+                            <Route path="/cart" element={<CartPage cart={cart} updateQty={updateQty} clearCart={()=>setCart([])} />} />
+                            <Route path="/scan" element={<div className="h-screen flex items-center justify-center">סורק...</div>} />
+                        </Routes>
+                        <ChatWidget products={products} />
+                        <NavBar cartCount={cart.reduce((a,b)=>a+b.qty,0)} />
+                    </div>
+                </HashRouter>
+            );
+        };
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<AdminApp />);
+        root.render(<App />);
     </script>
 </body>
 </html>
